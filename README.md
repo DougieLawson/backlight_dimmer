@@ -64,4 +64,4 @@ In this case, follow one of these methods for disabling the console blanker:
   BLANK_TIME=0
 ```
 
-&Copy; Copyright 2019, Dougie Lawson, all rights reserved.
+&copy; Copyright 2019, Dougie Lawson, all rights reserved.
