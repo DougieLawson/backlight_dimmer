@@ -22,8 +22,8 @@ to turn the backlight on and off. The event device is a command-line parameter w
 
 Clone the repository and change directories:
 ```
-git clone https://github.com/timothyhollabaugh/pi-touchscreen-timeout.git
-cd pi-touchscreen-timeout
+git clone https://github.com/DougieLawson/backlight_dimmer
+cd backlight_dimmer
 ```
 
 Build and run it!
