@@ -1,10 +1,10 @@
-# pi-touchscreen-timeout
+# Backlight dimmer
 Leaving the backlight on the Official Raspberry Pi touchscreen can quickly wear it out.
 If you have a use that requires the pi to be on all the time, but does not require the
 display on all the time, then turning off the backlight while not in use can dramatically
 increase the life of the backlight.
 
-pi-touchscreen-timeout will transparently turn off the display backlight after there 
+Backlight dimmer will transparently dim the display backlight after there 
 has been no input for a specifed timeout, independent of anything using the display
 at the moment. It will then turn the touchscreen back on when input is received. The
 timeout period is set by a command-line argument.
@@ -14,8 +14,8 @@ display. Whatever is running will still receive an event, even if the display
 is off.
 
 The program will use a linux event device like `/dev/input/event0` to receive events
-from the touchscreen, keyboard, mouse, etc., and `/sys/class/backlight/rpi-backlight/bl_power`
-to turn the backlight on and off. The event device is a command-line parameter without the
+from the touchscreen, keyboard, mouse, etc., and `/sys/class/backlight/rpi-backlight/brightness`
+to dim the backlight. The event device is a command-line parameter without the
 /dev/input/ path specification.
 
 # Installation
