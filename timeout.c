@@ -168,7 +168,7 @@ int main(int argc, char * argv[]) {
             for (i = 0; i <= max_brightness; i++) {
                 current_brightness += fade_amount;
                 if (current_brightness > max_brightness) current_brightness = max_brightness;
-                printf("Brightness now %d\n", current_brightness);
+                //printf("Brightness now %d\n", current_brightness);
                 set_screen_brightness(current_brightness);
                 sleep_ms(1);
             }
@@ -178,14 +178,14 @@ int main(int argc, char * argv[]) {
                 for (i = max_brightness; i > 0; i--) {
                     current_brightness -= fade_amount;
                     if (current_brightness < 0) current_brightness = 0;
-                    printf("Brightness now %d\n", current_brightness);
+                    //printf("Brightness now %d\n", current_brightness);
                     set_screen_brightness(current_brightness);
                     sleep_ms(2);
                 }
             }
             fade_direction = true;
         }
-        printf("Idle Time: %d\n", GetIdleTime());
+        //printf("Idle Time: %d\n", GetIdleTime());
         sleep_ms(1000);
     }
 }
