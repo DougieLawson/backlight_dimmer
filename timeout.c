@@ -110,7 +110,7 @@ static uint32_t GetIdleTime() {
 	char path[1035];
 	
 	/* Open the command for reading. */
-	fp = popen("xprintidle", "r");
+	fp = popen("sudo -u pi env DISPLAY=:0 xprintidle", "r");
 	if (fp == NULL) {
 	  printf("Failed to run command\n" );
 	  exit(1);
@@ -127,6 +127,7 @@ static uint32_t GetIdleTime() {
 }
 
 int main(int argc, char * argv[]) {
+    printf("Hello World\n");
     signal(SIGINT, sig_handler);
     if (argc < 2) {
         printf("Usage: timeout <timeout_sec>\n");
