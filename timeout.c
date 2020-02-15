@@ -31,6 +31,7 @@ static FILE* brightfd;
 static uint16_t actual_brightness;
 static uint16_t max_brightness;
 static uint16_t current_brightness;
+static uint32_t current_time;
 
 static void sig_handler(int _);
 static void set_screen_brightness(uint32_t brightness);
@@ -211,16 +212,18 @@ int main(int argc, char * argv[]) {
 		while (1) {
 				for (uint16_t i = 0; i < num_dev; i++) {
 						event_size = read(eventfd[i], event, size*64);
-						if(event_size != -1) {
-								printf("%s Value: %d, Code: %x\n", device[i], event[0].value, event[0].code);
+						if(event_size != -1 && event[i].time.tv_sec != current_time) {
+								enable_touch_screen(true);
+								printf("Time: %ld Value: %d, Code: %x, Type: %x\n", event[i].time.tv_sec, event[i].value, event[i].code, event[i].type);
 								for (uint16_t i = 0; i <= max_brightness; i++) {
 										current_brightness += fade_amount;
 										if (current_brightness > max_brightness) current_brightness = max_brightness;
-										//printf("Brightness now %d\n", current_brightness);
+										printf("Brightness now %d\n", current_brightness);
 										set_screen_brightness(current_brightness);
 										sleep_ms(1);
 								}
 								fade_direction = false;
+								current_time = event[i].time.tv_sec;
 						}
 				}
 				if (fade_direction && get_idle_time() < timeout*1E4) {
@@ -241,7 +244,7 @@ int main(int argc, char * argv[]) {
 										set_screen_brightness(current_brightness);
 										sleep_ms(2);
 								}
-								enable_touch_screen(false);
+								//enable_touch_screen(false);
 						}
 						fade_direction = true;
 				}
