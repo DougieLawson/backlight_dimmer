@@ -146,8 +146,10 @@ static void enable_touch_screen(bool enable) {
 int main(int argc, char * argv[]) {
 		// printf("Hello World\n");
 		signal(SIGINT, sig_handler);
-		if (argc < 2) {
+		if (argc < 3) {
 				printf("Usage: timeout <timeout_sec>\n");
+				printf("    Use lsinput to see input devices.\n");
+				printf("    Device to use is shown as /dev/input/<device>\n");
 				exit(1);
 		}
 		uint16_t tlen;
@@ -159,6 +161,32 @@ int main(int argc, char * argv[]) {
 						exit(1);
 				}
 		timeout = atoi(argv[1]);
+		uint16_t num_dev = argc - 2;
+		uint16_t eventfd[num_dev];
+		char device[num_dev][32];
+		for (uint16_t i = 0; i < num_dev; i++) {
+				device[i][0] = '\0';
+				strcat(device[i], "/dev/input/");
+				strcat(device[i], argv[i + 2]);
+
+				int event_dev = open(device[i], O_RDONLY | O_NONBLOCK);
+				if(event_dev == -1) {
+						int err = errno;
+						printf("Error opening %s: %d\n", device[i], err);
+						exit(1);
+				}
+				eventfd[i] = event_dev;
+		}
+		printf("Using input device%s: ", (num_dev > 1) ? "s" : "");
+		for (uint16_t i = 0; i < num_dev; i++) {
+				printf("%s ", device[i]);
+		}
+		printf("\n");
+
+		printf("Starting...\n");
+		struct input_event event[64];
+		uint16_t event_size;
+		uint16_t size = sizeof(struct input_event);
 
 		// char actual[53] = "/sys/class/backlight/rpi_backlight/actual_brightness";
 		char max[50] = "/sys/class/backlight/rpi_backlight/max_brightness";
@@ -181,6 +209,20 @@ int main(int argc, char * argv[]) {
 
 		bool fade_direction = true;
 		while (1) {
+				for (uint16_t i = 0; i < num_dev; i++) {
+						event_size = read(eventfd[i], event, size*64);
+						if(event_size != -1) {
+								printf("%s Value: %d, Code: %x\n", device[i], event[0].value, event[0].code);
+								for (uint16_t i = 0; i <= max_brightness; i++) {
+										current_brightness += fade_amount;
+										if (current_brightness > max_brightness) current_brightness = max_brightness;
+										//printf("Brightness now %d\n", current_brightness);
+										set_screen_brightness(current_brightness);
+										sleep_ms(1);
+								}
+								fade_direction = false;
+						}
+				}
 				if (fade_direction && get_idle_time() < timeout*1E4) {
 						for (uint16_t i = 0; i <= max_brightness; i++) {
 								current_brightness += fade_amount;
