@@ -7,7 +7,7 @@
 Simply type in the terminal of the project's directory:
 ```
 make
-sudo ./timeout 30
+sudo ./timeout 30 event0
 ```
 where the 30 is 30 seconds of idleness
 
@@ -24,7 +24,7 @@ Enter the following into the new file:
 Description=Used to dim the raspberry pi's backlight upon idleness
 
 [Service]
-ExecStart=/home/pi/Documents/Github/myForks/backlight_dimmer/timeout 30
+ExecStart=/home/pi/Documents/Github/myForks/backlight_dimmer/timeout 30 event0
 
 [Install]
 WantedBy=multi-user.target
