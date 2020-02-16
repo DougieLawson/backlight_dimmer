@@ -240,6 +240,7 @@ int main(int argc, char * argv[]) {
 						for (uint16_t i = 0; i < num_dev; i++) {
 								event_size = read(eventfd[i], event, size*64);
 								if(event_size != -1 && event_size != 65535 && event[i].time.tv_sec != current_time) {
+										//printf("Touch Detected!\n");
 										// printf("Setting Brightness, Time: %ld\n", event[i].time.tv_sec);
 										increase_brightness(true);
 										fade_direction = false;
@@ -260,16 +261,19 @@ int main(int argc, char * argv[]) {
 						}
 				}
 				if(touch_screen_triggered && (time(NULL)-last_touch_time >= timeout)) {
+						//printf("Touch screen check ended\n");
 						touch_screen_triggered = false;
 				}
 				if (!user_moved && fade_direction && (get_idle_time() < timeout*1E4)) {
+						//printf("Mouse moved\n");
 						fade_direction = false;
 						user_moved = true;
-						touch_screen_triggered = true;
+						//touch_screen_triggered = true;
 						enable_touch_screen(true);
 						increase_brightness(true);
 				}
-				else if ((!touch_screen_triggered||user_moved) && !fade_direction && (get_idle_time() >= timeout*1E4)) {
+				if ((!touch_screen_triggered||user_moved) && !fade_direction && (get_idle_time() >= timeout*1E4)) {
+						//printf("Screen dim: %d\n", get_idle_time());
 						fade_direction = true;
 						user_moved = false;
 						if (current_brightness > 0) {
@@ -278,6 +282,6 @@ int main(int argc, char * argv[]) {
 						}
 				}
 				//printf("Idle Time: %d\n", get_idle_time());
-				sleep_ms(SLEEP_TIMEOUT_DURATION);
+				sleep_ms(150);
 		}
 }
