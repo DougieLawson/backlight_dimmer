@@ -211,7 +211,7 @@ int main(int argc, char * argv[]) {
 		uint16_t event_size;
 		uint16_t size = sizeof(struct input_event);
 
-		// char actual[53] = "/sys/class/backlight/rpi_backlight/actual_brightness";
+		char actual[53] = "/sys/class/backlight/rpi_backlight/actual_brightness";
 		char max[50] = "/sys/class/backlight/rpi_backlight/max_brightness";
 		char bright[46] = "/sys/class/backlight/rpi_backlight/brightness";
 
@@ -224,7 +224,7 @@ int main(int argc, char * argv[]) {
 
 		max_brightness = readint(max);
 		current_brightness = max_brightness;
-		actual_brightness = max_brightness; //readint(actual);
+		actual_brightness = readint(actual);
 
 		set_screen_brightness(max_brightness);
 
@@ -246,8 +246,11 @@ int main(int argc, char * argv[]) {
 										touch_screen_triggered = true;
 										last_touch_time = time(NULL);
 										current_time = event[i].time.tv_sec;
-										enable_touch_screen(true);
 										increase_brightness(true);
+										enable_touch_screen(true);
+										while(readint(actual)!=readint(max)){
+											increase_brightness(true);
+										}
 								}
 						}
 				}
@@ -268,9 +271,11 @@ int main(int argc, char * argv[]) {
 						//printf("Mouse moved\n");
 						fade_direction = false;
 						user_moved = true;
-						//touch_screen_triggered = true;
-						enable_touch_screen(true);
 						increase_brightness(true);
+						enable_touch_screen(true);
+						while(readint(actual)!=readint(max)){
+							increase_brightness(true);
+						}
 				}
 				if ((!touch_screen_triggered||user_moved) && !fade_direction && (get_idle_time() >= timeout*1E4)) {
 						//printf("Screen dim: %d\n", get_idle_time());
