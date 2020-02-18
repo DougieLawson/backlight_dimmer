@@ -3,7 +3,7 @@
 + systemd timer used to run at boot
 + Regarding the touch screen, the device disables it after dimming the screen.  Then, when the user taps on the screen, it brightens the screen and enables the touch screen inputs. This way, we avoid propagating the mouse inputs when we can't see the screen. **(which was an issue in the original repo)**
 
-- A new issue is that when the user drags, xprintidle cannot detect it.
+- Con: A new issue is that when the user drags, xprintidle cannot detect it.
 
 ## Running
 Simply type in the terminal of the project's directory:
@@ -27,12 +27,19 @@ Description=Used to dim the raspberry pi's backlight upon idleness
 
 [Service]
 ExecStart=/home/pi/Documents/Github/myForks/backlight_dimmer/timeout 30 event0
+Environment=DISPLAY=:0
 
 [Install]
 WantedBy=multi-user.target
 
 ```
-Then reboot!
+Then start it!
+
+```
+sudo systemctl daemon-reload
+sudo systemctl restart backlight_dimmer.service
+sudo systemctl enable backlight_dimmer.service
+```
 
 -----
 # Backlight dimmer
