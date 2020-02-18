@@ -152,7 +152,7 @@ static void increase_brightness(bool increase){
 						if (current_brightness > max_brightness) current_brightness = max_brightness;
 						//printf("Brightness now %d\n", current_brightness);
 						set_screen_brightness(current_brightness);
-						sleep_ms(1);
+						sleep_ms(2);
 				}
 		}
 		else{
@@ -236,18 +236,18 @@ int main(int argc, char * argv[]) {
 		time_t last_touch_time = time(NULL);
 
 		while (1) {
-				if(fade_direction && !touch_screen_triggered && !user_moved) {
+				if(fade_direction && !touch_screen_triggered) {
 						for (uint16_t i = 0; i < num_dev; i++) {
 								event_size = read(eventfd[i], event, size*64);
 								if(event_size != -1 && event_size != 65535 && event[i].time.tv_sec != current_time) {
 										//printf("Touch Detected!\n");
 										// printf("Setting Brightness, Time: %ld\n", event[i].time.tv_sec);
-										increase_brightness(true);
 										fade_direction = false;
 										touch_screen_triggered = true;
 										last_touch_time = time(NULL);
 										current_time = event[i].time.tv_sec;
 										enable_touch_screen(true);
+										increase_brightness(true);
 								}
 						}
 				}
@@ -282,6 +282,6 @@ int main(int argc, char * argv[]) {
 						}
 				}
 				//printf("Idle Time: %d\n", get_idle_time());
-				sleep_ms(150);
+				sleep_ms(SLEEP_TIMEOUT_DURATION);
 		}
 }
