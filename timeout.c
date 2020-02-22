@@ -274,6 +274,7 @@ int main(int argc, char * argv[]) {
 										touch_screen_triggered = true;
 										last_touch_time = time(NULL);
 										current_time = event[i].time.tv_sec;
+										set_screen_brightness_cmd_line(current_brightness); //fixes a weird bug with file being locked
 										increase_brightness(true);
 										enable_touch_screen(true);
 								}
@@ -297,14 +298,17 @@ int main(int argc, char * argv[]) {
 						relative_idle_time = get_idle_time();
 						fade_direction = false;
 						user_moved = true;
+						set_screen_brightness_cmd_line(current_brightness); //fixes a weird bug with file being locked
 						increase_brightness(true);
 						enable_touch_screen(true);
 				}
 				if ((!touch_screen_triggered||user_moved) && !fade_direction && ((get_idle_time()-relative_idle_time) >= timeout*1E4)) {
+						relative_idle_time = get_idle_time()-timeout*1E4;
 						printf("Screen dim: %lld\n", (get_idle_time()-relative_idle_time));
 						fade_direction = true;
 						user_moved = false;
 						if (current_brightness > 0) {
+								set_screen_brightness_cmd_line(current_brightness); //fixes a weird bug with file being locked
 								increase_brightness(false);
 								enable_touch_screen(false);
 						}
