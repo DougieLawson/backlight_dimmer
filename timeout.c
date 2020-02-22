@@ -39,7 +39,6 @@ static const char max_file[50] = "/sys/class/backlight/rpi_backlight/max_brightn
 static const char bright_file[46] = "/sys/class/backlight/rpi_backlight/brightness";
 
 static void sig_handler(int _);
-static void set_screen_brightness_cmd_line(uint32_t brightness);
 static void set_screen_brightness(FILE* filefd, uint32_t brightness);
 static uint32_t fast_atoi( const char * str );
 static uint32_t get_idle_time();
@@ -90,24 +89,8 @@ void sleep_ms(int milliseconds) // cross-platform sleep function
 static void sig_handler(int _)
 {
 		(void)_;
-		set_screen_brightness_cmd_line(max_brightness);
+		increase_brightness(true);
 		exit(0);
-}
-
-static void set_screen_brightness_cmd_line(uint32_t brightness){
-		FILE *fp;
-		char final_command[250];
-		char set_command[] = "echo %d | sudo tee %s > /dev/null";
-		sprintf(final_command, set_command, brightness, bright_file);
-		// printf("%s\n", final_command);
-		/* Open the command for reading. */
-		fp = popen((char *) final_command, "r");
-		if (fp == NULL) {
-				printf("Failed to run command\n" );
-				exit(1);
-		}
-		/* close */
-		pclose(fp);
 }
 
 static void set_screen_brightness(FILE* filefd, uint32_t brightness){
@@ -252,8 +235,8 @@ int main(int argc, char * argv[]) {
 		current_brightness = max_brightness;
 		actual_brightness = readint(actual_file);
 
-		set_screen_brightness_cmd_line(max_brightness);
-
+		increase_brightness(true);
+										
 		printf("actual_brightness %d, max_brightness %d\n", actual_brightness, max_brightness);
 
 		bool fade_direction = false;
@@ -268,13 +251,11 @@ int main(int argc, char * argv[]) {
 								event_size = read(eventfd[i], event, size*64);
 								if(event_size != -1 && event_size != 65535 && event[i].time.tv_sec != current_time) {
 										printf("Touch Detected!\n");
-										//relative_idle_time = get_idle_time();
 										//printf("Setting Brightness, Time: %ld\n", event[i].time.tv_sec);
 										fade_direction = false;
 										touch_screen_triggered = true;
 										last_touch_time = time(NULL);
 										current_time = event[i].time.tv_sec;
-										set_screen_brightness_cmd_line(current_brightness); //fixes a weird bug with file being locked
 										increase_brightness(true);
 										enable_touch_screen(true);
 								}
@@ -298,7 +279,6 @@ int main(int argc, char * argv[]) {
 						relative_idle_time = get_idle_time();
 						fade_direction = false;
 						user_moved = true;
-						set_screen_brightness_cmd_line(current_brightness); //fixes a weird bug with file being locked
 						increase_brightness(true);
 						enable_touch_screen(true);
 				}
@@ -308,7 +288,6 @@ int main(int argc, char * argv[]) {
 						fade_direction = true;
 						user_moved = false;
 						if (current_brightness > 0) {
-								set_screen_brightness_cmd_line(current_brightness); //fixes a weird bug with file being locked
 								increase_brightness(false);
 								enable_touch_screen(false);
 						}
