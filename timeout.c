@@ -26,7 +26,7 @@
 #define fade_amount 1
 #define TOUCH_SCREEN_INPUT_DEVICE 6 //found by typing `xinput --list` in terminal
 #define SLEEP_TIMEOUT_DURATION 1000 //in ms
-#define XPRINT_IDLE_TIMEOUT 6000 //in ms
+#define XPRINT_IDLE_TIMEOUT 3000 //in ms
 
 static uint16_t actual_brightness;
 static uint16_t max_brightness;
@@ -203,7 +203,6 @@ static void increase_brightness(bool increase){
 }
 
 int main(int argc, char * argv[]) {
-		// printf("Hello World\n");
 		signal(SIGINT, sig_handler);
 		if (argc < 3) {
 				printf("Usage: timeout <timeout_sec>\n");
@@ -214,11 +213,12 @@ int main(int argc, char * argv[]) {
 		uint16_t tlen;
 		uint16_t timeout;
 		tlen = strlen(argv[1]);
-		for (uint16_t i = 0; i < tlen; i++)
+		for (uint16_t i = 0; i < tlen; i++){
 				if (!isdigit(argv[1][i])) {
 						printf("Entered timeout value is not a number\n");
 						exit(1);
 				}
+		}
 		timeout = atoi(argv[1]);
 		uint16_t num_dev = argc - 2;
 		uint16_t eventfd[num_dev];
@@ -252,11 +252,11 @@ int main(int argc, char * argv[]) {
 		current_brightness = max_brightness;
 		actual_brightness = readint(actual_file);
 
+		increase_brightness(true);
 		restart_xprintidle();
 		sleep_ms(XPRINT_IDLE_TIMEOUT);
-		increase_brightness(true);
 										
-		printf("actual_brightness %d, max_brightness %d\n", actual_brightness, max_brightness);
+		//printf("actual_brightness %d, max_brightness %d\n", actual_brightness, max_brightness);
 
 		bool fade_direction = false;
 		bool touch_screen_triggered = true;
@@ -269,7 +269,7 @@ int main(int argc, char * argv[]) {
 						for (uint16_t i = 0; i < num_dev; i++) {
 								event_size = read(eventfd[i], event, size*64);
 								if(event_size != -1 && event_size != 65535 && event[i].time.tv_sec != current_time) {
-										printf("Touch Detected!\n");
+										//printf("Touch Detected!\n");
 										//printf("Setting Brightness, Time: %ld\n", event[i].time.tv_sec);
 										fade_direction = false;
 										touch_screen_triggered = true;
@@ -284,17 +284,17 @@ int main(int argc, char * argv[]) {
 						for (uint16_t i = 0; i < num_dev; i++) {
 								event_size = read(eventfd[i], event, size*64);
 								if(event_size != -1 && event_size != 65535 && event[i].time.tv_sec != current_time) {
-										printf("Time: %lld\n", event[i].time.tv_sec);
+										//printf("Time: %lld\n", event[i].time.tv_sec);
 										current_time = event[i].time.tv_sec;
 								}
 						}
 				}
 				if(touch_screen_triggered && (time(NULL)-last_touch_time >= timeout)) {
-						printf("Touch screen check ended\n");
+						//printf("Touch screen check ended\n");
 						touch_screen_triggered = false;
 				}
 				if (!user_moved && fade_direction && ((get_idle_time()-relative_idle_time) < timeout*1E4)) {
-						printf("Mouse moved\n");
+						//printf("Mouse moved\n");
 						relative_idle_time = get_idle_time();
 						fade_direction = false;
 						user_moved = true;
@@ -303,7 +303,7 @@ int main(int argc, char * argv[]) {
 				}
 				if ((!touch_screen_triggered||user_moved) && !fade_direction && ((get_idle_time()-relative_idle_time) >= timeout*1E4)) {
 						relative_idle_time = get_idle_time()-timeout*1E4;
-						printf("Screen dim: %lld\n", (get_idle_time()-relative_idle_time));
+						//printf("Screen dim: %lld\n", (get_idle_time()-relative_idle_time));
 						fade_direction = true;
 						user_moved = false;
 						if (current_brightness > 0) {
@@ -311,7 +311,7 @@ int main(int argc, char * argv[]) {
 								enable_touch_screen(false);
 						}
 				}
-				printf("Idle Time: %lld\n", (get_idle_time()-relative_idle_time));
+				//printf("Idle Time: %lld\n", (get_idle_time()-relative_idle_time));
 				sleep_ms(SLEEP_TIMEOUT_DURATION);
 		}
 }
