@@ -322,8 +322,8 @@ int main(int argc, char * argv[]) {
 
 		increase_brightness(true);
 		enable_touch_screen(true);
-		//restart_xprintidle();
-		//sleep_ms(XPRINT_IDLE_TIMEOUT);
+		restart_xprintidle();
+		sleep_ms(XPRINT_IDLE_TIMEOUT);
 										
 		printf("Touchscreen's ID: %d, actual_brightness %d, max_brightness %d\n", get_touch_screen_id(), actual_brightness, max_brightness);
 
