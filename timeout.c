@@ -27,20 +27,26 @@
 #define TOUCH_SCREEN_INPUT_DEVICE 6 //found by typing `xinput --list` in terminal
 #define SLEEP_TIMEOUT_DURATION 1000 //in ms
 
-static FILE* brightfd;
 static uint16_t actual_brightness;
 static uint16_t max_brightness;
 static uint16_t current_brightness;
-static uint32_t current_time;
+static uint16_t prev_brightness = 0;
+static long long int current_time;
+static long long int relative_idle_time;
+
+static const char actual_file[53] = "/sys/class/backlight/rpi_backlight/actual_brightness";
+static const char max_file[50] = "/sys/class/backlight/rpi_backlight/max_brightness";
+static const char bright_file[46] = "/sys/class/backlight/rpi_backlight/brightness";
 
 static void sig_handler(int _);
-static void set_screen_brightness(uint32_t brightness);
+static void set_screen_brightness_cmd_line(uint32_t brightness);
+static void set_screen_brightness(FILE* filefd, uint32_t brightness);
 static uint32_t fast_atoi( const char * str );
 static uint32_t get_idle_time();
 static void enable_touch_screen(bool enable);
 static void increase_brightness(bool increase);
 
-long int readint(char * filenm) {
+long long int readint(const char * filenm) {
 		FILE * filefd;
 		filefd = fopen(filenm, "r");
 		if (filefd == NULL) {
@@ -52,7 +58,6 @@ long int readint(char * filenm) {
 		char number[10];
 		char * end;
 		fscanf(filefd, "%s", (char *) &number);
-		printf("File: %s ,The number is: %s\n", filenm, number);
 
 		fclose(filefd);
 		return strtol(number, &end, 10);
@@ -85,14 +90,30 @@ void sleep_ms(int milliseconds) // cross-platform sleep function
 static void sig_handler(int _)
 {
 		(void)_;
-		set_screen_brightness(max_brightness);
+		set_screen_brightness_cmd_line(max_brightness);
 		exit(0);
 }
 
-static void set_screen_brightness(uint32_t brightness){
-		fprintf(brightfd, "%d\n", brightness);
-		fflush(brightfd);
-		fseek(brightfd, 0, SEEK_SET);
+static void set_screen_brightness_cmd_line(uint32_t brightness){
+		FILE *fp;
+		char final_command[250];
+		char set_command[] = "echo %d | sudo tee %s > /dev/null";
+		sprintf(final_command, set_command, brightness, bright_file);
+		// printf("%s\n", final_command);
+		/* Open the command for reading. */
+		fp = popen((char *) final_command, "r");
+		if (fp == NULL) {
+				printf("Failed to run command\n" );
+				exit(1);
+		}
+		/* close */
+		pclose(fp);
+}
+
+static void set_screen_brightness(FILE* filefd, uint32_t brightness){
+		fprintf(filefd, "%d\n", brightness);
+		fflush(filefd);
+		fseek(filefd, 0, SEEK_SET);
 }
 
 static uint32_t fast_atoi( const char * str )
@@ -146,24 +167,39 @@ static void enable_touch_screen(bool enable) {
 }
 
 static void increase_brightness(bool increase){
+		FILE* brightfd;
+		brightfd = fopen(bright_file, "w");
+		if (brightfd == NULL) {
+				int err = errno;
+				printf("Error opening %s file: %d", bright_file, err);
+				return;
+		}
+		prev_brightness = current_brightness;
+		//printf("Setting Brightness...\n");
 		if(increase) {
-				for (uint16_t i = 0; i <= max_brightness; i++) {
-						current_brightness += fade_amount;
-						if (current_brightness > max_brightness) current_brightness = max_brightness;
-						//printf("Brightness now %d\n", current_brightness);
-						set_screen_brightness(current_brightness);
-						sleep_ms(2);
+				for (uint16_t i = 0; i <= max_brightness-fade_amount; i++) {
+						current_brightness = (current_brightness+fade_amount>=max_brightness)?max_brightness:current_brightness+fade_amount;
+						if (prev_brightness!=current_brightness){ 
+							//printf("Brightness: %d\n", current_brightness);
+							set_screen_brightness(brightfd, current_brightness);
+							prev_brightness = current_brightness;
+						}
+						sleep_ms(1);
 				}
 		}
 		else{
-				for (uint16_t i = max_brightness; i > 0; i--) {
-						current_brightness -= fade_amount;
-						if (current_brightness < 0) current_brightness = 0;
-						//printf("Brightness now %d\n", current_brightness);
-						set_screen_brightness(current_brightness);
-						sleep_ms(2);
+				for (uint16_t i = max_brightness; i > 0 + fade_amount; i--) {
+						current_brightness = (current_brightness-fade_amount<=0)?0:current_brightness-fade_amount;
+						if (prev_brightness!=current_brightness){ 
+							//printf("Brightness: %d\n", current_brightness);	
+							set_screen_brightness(brightfd, current_brightness);
+							prev_brightness = current_brightness;
+						}
+						sleep_ms(3);
 				}
 		}
+		//printf("Done setting Brightness!\n");
+		pclose(brightfd);
 }
 
 int main(int argc, char * argv[]) {
@@ -211,22 +247,12 @@ int main(int argc, char * argv[]) {
 		uint16_t event_size;
 		uint16_t size = sizeof(struct input_event);
 
-		char actual[53] = "/sys/class/backlight/rpi_backlight/actual_brightness";
-		char max[50] = "/sys/class/backlight/rpi_backlight/max_brightness";
-		char bright[46] = "/sys/class/backlight/rpi_backlight/brightness";
-
-		brightfd = fopen(bright, "w");
-		if (brightfd == NULL) {
-				int err = errno;
-				printf("Error opening %s file: %d", bright, err);
-				exit(1);
-		}
-
-		max_brightness = readint(max);
+		
+		max_brightness = readint(max_file);
 		current_brightness = max_brightness;
-		actual_brightness = readint(actual);
+		actual_brightness = readint(actual_file);
 
-		set_screen_brightness(max_brightness);
+		set_screen_brightness_cmd_line(max_brightness);
 
 		printf("actual_brightness %d, max_brightness %d\n", actual_brightness, max_brightness);
 
@@ -234,23 +260,22 @@ int main(int argc, char * argv[]) {
 		bool touch_screen_triggered = true;
 		bool user_moved = false;
 		time_t last_touch_time = time(NULL);
+		relative_idle_time = get_idle_time();
 
 		while (1) {
 				if(fade_direction && !touch_screen_triggered) {
 						for (uint16_t i = 0; i < num_dev; i++) {
 								event_size = read(eventfd[i], event, size*64);
 								if(event_size != -1 && event_size != 65535 && event[i].time.tv_sec != current_time) {
-										//printf("Touch Detected!\n");
-										// printf("Setting Brightness, Time: %ld\n", event[i].time.tv_sec);
+										printf("Touch Detected!\n");
+										//relative_idle_time = get_idle_time();
+										//printf("Setting Brightness, Time: %ld\n", event[i].time.tv_sec);
 										fade_direction = false;
 										touch_screen_triggered = true;
 										last_touch_time = time(NULL);
 										current_time = event[i].time.tv_sec;
 										increase_brightness(true);
 										enable_touch_screen(true);
-										while(readint(actual)!=readint(max)){
-											increase_brightness(true);
-										}
 								}
 						}
 				}
@@ -258,27 +283,25 @@ int main(int argc, char * argv[]) {
 						for (uint16_t i = 0; i < num_dev; i++) {
 								event_size = read(eventfd[i], event, size*64);
 								if(event_size != -1 && event_size != 65535 && event[i].time.tv_sec != current_time) {
-										// printf("Time: %ld\n", event[i].time.tv_sec);
+										printf("Time: %lld\n", event[i].time.tv_sec);
 										current_time = event[i].time.tv_sec;
 								}
 						}
 				}
 				if(touch_screen_triggered && (time(NULL)-last_touch_time >= timeout)) {
-						//printf("Touch screen check ended\n");
+						printf("Touch screen check ended\n");
 						touch_screen_triggered = false;
 				}
-				if (!user_moved && fade_direction && (get_idle_time() < timeout*1E4)) {
-						//printf("Mouse moved\n");
+				if (!user_moved && fade_direction && ((get_idle_time()-relative_idle_time) < timeout*1E4)) {
+						printf("Mouse moved\n");
+						relative_idle_time = get_idle_time();
 						fade_direction = false;
 						user_moved = true;
 						increase_brightness(true);
 						enable_touch_screen(true);
-						while(readint(actual)!=readint(max)){
-							increase_brightness(true);
-						}
 				}
-				if ((!touch_screen_triggered||user_moved) && !fade_direction && (get_idle_time() >= timeout*1E4)) {
-						//printf("Screen dim: %d\n", get_idle_time());
+				if ((!touch_screen_triggered||user_moved) && !fade_direction && ((get_idle_time()-relative_idle_time) >= timeout*1E4)) {
+						printf("Screen dim: %lld\n", (get_idle_time()-relative_idle_time));
 						fade_direction = true;
 						user_moved = false;
 						if (current_brightness > 0) {
@@ -286,7 +309,7 @@ int main(int argc, char * argv[]) {
 								enable_touch_screen(false);
 						}
 				}
-				//printf("Idle Time: %d\n", get_idle_time());
+				printf("Idle Time: %lld\n", (get_idle_time()-relative_idle_time));
 				sleep_ms(SLEEP_TIMEOUT_DURATION);
 		}
 }
