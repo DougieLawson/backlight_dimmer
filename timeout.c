@@ -26,6 +26,7 @@
 #define fade_amount 1
 #define TOUCH_SCREEN_INPUT_DEVICE 6 //found by typing `xinput --list` in terminal
 #define SLEEP_TIMEOUT_DURATION 1000 //in ms
+#define XPRINT_IDLE_TIMEOUT 6000 //in ms
 
 static uint16_t actual_brightness;
 static uint16_t max_brightness;
@@ -33,6 +34,7 @@ static uint16_t current_brightness;
 static uint16_t prev_brightness = 0;
 static long long int current_time;
 static long long int relative_idle_time;
+static long long int last_known_idle_time;
 
 static const char actual_file[53] = "/sys/class/backlight/rpi_backlight/actual_brightness";
 static const char max_file[50] = "/sys/class/backlight/rpi_backlight/max_brightness";
@@ -40,6 +42,7 @@ static const char bright_file[46] = "/sys/class/backlight/rpi_backlight/brightne
 
 static void sig_handler(int _);
 static void set_screen_brightness(FILE* filefd, uint32_t brightness);
+static void restart_xprintidle();
 static uint32_t fast_atoi( const char * str );
 static uint32_t get_idle_time();
 static void enable_touch_screen(bool enable);
@@ -106,6 +109,20 @@ static uint32_t fast_atoi( const char * str )
 				val = val*10 + (*str++ - '0');
 		}
 		return val;
+}
+
+static void restart_xprintidle() {
+		FILE *fp;
+
+		/* Open the command for reading. */
+		fp = popen("sudo systemctl restart display-manager", "r");
+		if (fp == NULL) {
+				printf("Failed to run command\n" );
+				exit(1);
+		}
+
+		/* close */
+		pclose(fp);
 }
 
 static uint32_t get_idle_time() {
@@ -235,6 +252,8 @@ int main(int argc, char * argv[]) {
 		current_brightness = max_brightness;
 		actual_brightness = readint(actual_file);
 
+		restart_xprintidle();
+		sleep_ms(XPRINT_IDLE_TIMEOUT);
 		increase_brightness(true);
 										
 		printf("actual_brightness %d, max_brightness %d\n", actual_brightness, max_brightness);
