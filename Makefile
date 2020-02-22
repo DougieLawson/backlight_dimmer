@@ -1,15 +1,11 @@
-CC = gcc
-CC_FLAGS = -o2 -w
+src	=	$(wildcard	*.c)
+obj	=	$(src:.c=.o)
 
-EXEC = timeout
-SOURCES = $(wildcard *.c)
-OBJECTS = $(SOURCES:.c=.o)
+LDFLAGS	=	-lm	-lpcre
 
-$(EXEC): $(OBJECTS)
-	$(CC) $(OBJECTS) -o $(EXEC)
+timeout:	$(obj)
+				$(CC)	-o	$@	$^	$(LDFLAGS)
 
-%.o: %.c
-	$(CC) -c $(CC_FLAGS) $< -o $@
-
+.PHONY:	clean
 clean:
-	rm -f $(EXEC) $(OBJECTS)
+				rm	-f	$(obj)	timeout

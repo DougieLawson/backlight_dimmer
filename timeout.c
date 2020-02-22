@@ -22,9 +22,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
+#include <pcre.h> 
 
 #define fade_amount 1
-#define TOUCH_SCREEN_INPUT_DEVICE 6 //found by typing `xinput --list` in terminal
 #define SLEEP_TIMEOUT_DURATION 1000 //in ms
 #define XPRINT_IDLE_TIMEOUT 3000 //in ms
 
@@ -45,6 +45,7 @@ static void set_screen_brightness(FILE* filefd, uint32_t brightness);
 static void restart_xprintidle();
 static uint32_t fast_atoi( const char * str );
 static uint32_t get_idle_time();
+static uint32_t get_touch_screen_id();
 static void enable_touch_screen(bool enable);
 static void increase_brightness(bool increase);
 
@@ -147,6 +148,73 @@ static uint32_t get_idle_time() {
 		return idle_time;
 }
 
+static uint32_t get_touch_screen_id(){
+		int id;
+
+		pcre *reCompiled;
+		pcre_extra *pcreExtra;
+		int pcreExecRet;
+		int subStrVec[30];
+		const char *pcreErrorStr;
+		int pcreErrorOffset;
+		char aStrRegex[40] = "FT5406 memory based driver\\s*id=(\\d+)";
+		const char *psubStrMatchStr;
+
+		reCompiled = pcre_compile(aStrRegex, 0, &pcreErrorStr, &pcreErrorOffset, NULL);
+		if(reCompiled == NULL) {
+				printf("ERROR: Could not compile '%s': %s\n", aStrRegex, pcreErrorStr);
+				exit(1);
+		}
+		pcreExtra = pcre_study(reCompiled, 0, &pcreErrorStr);
+
+		if(pcreErrorStr != NULL) {
+				printf("ERROR: Could not study '%s': %s\n", aStrRegex, pcreErrorStr);
+				exit(1);
+		}
+
+		FILE *fp;
+		char path[1035];
+
+		fp = popen("sudo -u pi env DISPLAY=:0 xinput --list", "r");
+		if (fp == NULL) {
+				printf("Failed to run command\n" );
+				exit(1);
+		}
+
+		while (fgets(path, sizeof(path), fp) != NULL) {
+				pcreExecRet = pcre_exec(reCompiled,
+				                        pcreExtra,
+				                        path,
+				                        strlen(path),                                 // length of string
+				                        0,                                          // Start looking at this point
+				                        0,                                          // OPTIONS
+				                        subStrVec,
+				                        30);                                        // Length of subStrVec
+				if(pcreExecRet >= 0) {
+						// At this point, rc contains the number of substring matches found...
+						if(pcreExecRet == 0) {
+								// Set rc to the max number of substring matches possible.
+								pcreExecRet = 30 / 3;
+						}                                                         /* end if */
+
+						pcre_get_substring(path, subStrVec, pcreExecRet, 1, &(psubStrMatchStr));
+						// printf("ID: %s\n", psubStrMatchStr);
+						id = fast_atoi(psubStrMatchStr);
+						// Free up the substring
+						pcre_free_substring(psubStrMatchStr);
+				}
+		}
+		if(pcreExtra != NULL) {
+		#ifdef PCRE_CONFIG_JIT
+				pcre_free_study(pcreExtra);
+		#else
+				pcre_free(pcreExtra);
+		#endif
+		}
+		fclose(fp);
+		return id;
+}
+
 static void enable_touch_screen(bool enable) {
 		FILE *fp;
 		char final_command[70];
@@ -154,7 +222,7 @@ static void enable_touch_screen(bool enable) {
 		char disable_enable[10];
 		strcpy(disable_enable, (enable) ? "--enable" : "--disable");
 		char command[] = "sudo -u pi env DISPLAY=:0 xinput";
-		sprintf(final_command, set_command, command, disable_enable, TOUCH_SCREEN_INPUT_DEVICE);
+		sprintf(final_command, set_command, command, disable_enable, get_touch_screen_id());
 		// printf("%s\n", final_command);
 		/* Open the command for reading. */
 		fp = popen((char *) final_command, "r");
@@ -253,10 +321,11 @@ int main(int argc, char * argv[]) {
 		actual_brightness = readint(actual_file);
 
 		increase_brightness(true);
-		restart_xprintidle();
-		sleep_ms(XPRINT_IDLE_TIMEOUT);
+		enable_touch_screen(true);
+		//restart_xprintidle();
+		//sleep_ms(XPRINT_IDLE_TIMEOUT);
 										
-		//printf("actual_brightness %d, max_brightness %d\n", actual_brightness, max_brightness);
+		printf("Touchscreen's ID: %d, actual_brightness %d, max_brightness %d\n", get_touch_screen_id(), actual_brightness, max_brightness);
 
 		bool fade_direction = false;
 		bool touch_screen_triggered = true;

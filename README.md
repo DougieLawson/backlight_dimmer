@@ -5,6 +5,12 @@
 
 - Con: A new issue is that when the user drags, xprintidle cannot detect it.
 
+## Requirements
+install these packages:
+```
+sudo apt-get install libpcre3 libpcre3-dev xprintidle
+```
+
 ## Running
 Simply type in the terminal of the project's directory:
 ```
