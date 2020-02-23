@@ -3,6 +3,7 @@
 + systemd timer used to run at boot
 + Regarding the touch screen, the device disables it after dimming the screen.  Then, when the user taps on the screen, it brightens the screen and enables the touch screen inputs. This way, we avoid propagating the mouse inputs when we can't see the screen. **(which was an issue in the original repo)**
 
+- Con/Pro: The program disables energy star mode so that it can pick up touch events throughout the night.(This feature wasn't in the original repo)
 - Con: A new issue is that when the user drags, xprintidle cannot detect it.
 
 ## Requirements
@@ -32,7 +33,7 @@ Enter the following into the new file:
 Description=Used to dim the raspberry pi's backlight upon idleness
 
 [Service]
-ExecStartPre=/bin/sleep 10
+ExecStartPre=/bin/sleep 11  # sleep time of 11 seconds
 ExecStart=/home/pi/Documents/Github/myForks/backlight_dimmer/timeout 30 event0
 Environment=DISPLAY=:0
 
