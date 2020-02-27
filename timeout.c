@@ -24,6 +24,12 @@
 #include <signal.h>
 #include <pcre.h> 
 
+#if 1       //Set to 1 to see debugging and print statements, otherwise set to 0.
+  #define SPAM(a) printf a
+#else
+  #define SPAM(a) (void)0
+#endif
+
 #define fade_amount 1
 #define SLEEP_TIMEOUT_DURATION 1000 //in ms
 #define XPRINT_IDLE_TIMEOUT 3000 //in ms
@@ -32,14 +38,14 @@ static uint16_t actual_brightness;
 static uint16_t max_brightness;
 static uint16_t current_brightness;
 static uint16_t prev_brightness = 0;
-static long long int current_time;
-static long long int relative_idle_time;
-static long long int last_known_idle_time;
+static unsigned long long int current_time;
 
 static const char actual_file[53] = "/sys/class/backlight/rpi_backlight/actual_brightness";
 static const char max_file[50] = "/sys/class/backlight/rpi_backlight/max_brightness";
 static const char bright_file[46] = "/sys/class/backlight/rpi_backlight/brightness";
 
+static uint16_t readint(const char * filenm);
+static void sleep_ms(int milliseconds);
 static void sig_handler(int _);
 static void set_screen_brightness(FILE* filefd, uint32_t brightness);
 static void restart_xprintidle();
@@ -50,12 +56,12 @@ static uint32_t get_touch_screen_id();
 static void enable_touch_screen(bool enable);
 static void increase_brightness(bool increase);
 
-long long int readint(const char * filenm) {
+static uint16_t readint(const char * filenm) {
 		FILE * filefd;
 		filefd = fopen(filenm, "r");
 		if (filefd == NULL) {
 				int err = errno;
-				printf("Error opening %s file: %d", filenm, err);
+				SPAM(("Error opening %s file: %d", filenm, err));
 				exit(1);
 		}
 
@@ -66,8 +72,6 @@ long long int readint(const char * filenm) {
 		fclose(filefd);
 		return strtol(number, &end, 10);
 }
-///////////////////////////
-void sleep_ms(int milliseconds);
 #ifdef WIN32
 #include <windows.h>
 #elif _POSIX_C_SOURCE >= 199309L
@@ -76,7 +80,7 @@ void sleep_ms(int milliseconds);
 #include <unistd.h> // for usleep
 #endif
 // void sleep_ms(int milliseconds);
-void sleep_ms(int milliseconds) // cross-platform sleep function
+static void sleep_ms(int milliseconds) // cross-platform sleep function
 {
 	#ifdef WIN32
 		Sleep(milliseconds);
@@ -119,7 +123,7 @@ static void restart_xprintidle() {
 		/* Open the command for reading. */
 		fp = popen("sudo systemctl restart display-manager", "r");
 		if (fp == NULL) {
-				printf("Failed to run command\n" );
+				SPAM(("Failed to run command\n" ));
 				exit(1);
 		}
 
@@ -133,7 +137,7 @@ static void disable_xenergystar(){
 		/* Open the command for reading. */
 		fp = popen("sudo -u pi env DISPLAY=:0 xset s off -dpms", "r");
 		if (fp == NULL) {
-				printf("Failed to run command\n" );
+				SPAM(("Failed to run command\n"));
 				exit(1);
 		}
 
@@ -149,7 +153,7 @@ static uint32_t get_idle_time() {
 		/* Open the command for reading. */
 		fp = popen("sudo -u pi env DISPLAY=:0 xprintidle", "r");
 		if (fp == NULL) {
-				printf("Failed to run command\n" );
+				SPAM(("Failed to run command\n"));
 				exit(1);
 		}
 
@@ -177,13 +181,13 @@ static uint32_t get_touch_screen_id(){
 
 		reCompiled = pcre_compile(aStrRegex, 0, &pcreErrorStr, &pcreErrorOffset, NULL);
 		if(reCompiled == NULL) {
-				printf("ERROR: Could not compile '%s': %s\n", aStrRegex, pcreErrorStr);
+				SPAM(("ERROR: Could not compile '%s': %s\n", aStrRegex, pcreErrorStr));
 				exit(1);
 		}
 		pcreExtra = pcre_study(reCompiled, 0, &pcreErrorStr);
 
 		if(pcreErrorStr != NULL) {
-				printf("ERROR: Could not study '%s': %s\n", aStrRegex, pcreErrorStr);
+				SPAM(("ERROR: Could not study '%s': %s\n", aStrRegex, pcreErrorStr));
 				exit(1);
 		}
 
@@ -192,7 +196,7 @@ static uint32_t get_touch_screen_id(){
 
 		fp = popen("sudo -u pi env DISPLAY=:0 xinput --list", "r");
 		if (fp == NULL) {
-				printf("Failed to run command\n" );
+				SPAM(("Failed to run command\n"));
 				exit(1);
 		}
 
@@ -213,7 +217,6 @@ static uint32_t get_touch_screen_id(){
 						}                                                         /* end if */
 
 						pcre_get_substring(path, subStrVec, pcreExecRet, 1, &(psubStrMatchStr));
-						// printf("ID: %s\n", psubStrMatchStr);
 						id = fast_atoi(psubStrMatchStr);
 						// Free up the substring
 						pcre_free_substring(psubStrMatchStr);
@@ -238,11 +241,10 @@ static void enable_touch_screen(bool enable) {
 		strcpy(disable_enable, (enable) ? "--enable" : "--disable");
 		char command[] = "sudo -u pi env DISPLAY=:0 xinput";
 		sprintf(final_command, set_command, command, disable_enable, get_touch_screen_id());
-		// printf("%s\n", final_command);
 		/* Open the command for reading. */
 		fp = popen((char *) final_command, "r");
 		if (fp == NULL) {
-				printf("Failed to run command\n" );
+				SPAM(("Failed to run command\n"));
 				exit(1);
 		}
 		/* close */
@@ -254,16 +256,16 @@ static void increase_brightness(bool increase){
 		brightfd = fopen(bright_file, "w");
 		if (brightfd == NULL) {
 				int err = errno;
-				printf("Error opening %s file: %d", bright_file, err);
+				SPAM(("Error opening %s file: %d", bright_file, err));
 				return;
 		}
 		prev_brightness = current_brightness;
-		//printf("Setting Brightness...\n");
+		SPAM(("Setting Brightness...\n"));
 		if(increase) {
 				for (uint16_t i = 0; i <= max_brightness-fade_amount; i++) {
 						current_brightness = (current_brightness+fade_amount>=max_brightness)?max_brightness:current_brightness+fade_amount;
 						if (prev_brightness!=current_brightness){ 
-							//printf("Brightness: %d\n", current_brightness);
+							//SPAM(("Brightness: %d\n", current_brightness));
 							set_screen_brightness(brightfd, current_brightness);
 							prev_brightness = current_brightness;
 						}
@@ -274,23 +276,23 @@ static void increase_brightness(bool increase){
 				for (uint16_t i = max_brightness; i > 0 + fade_amount; i--) {
 						current_brightness = (current_brightness-fade_amount<=0)?0:current_brightness-fade_amount;
 						if (prev_brightness!=current_brightness){ 
-							//printf("Brightness: %d\n", current_brightness);	
+							//SPAM(("Brightness: %d\n", current_brightness));	
 							set_screen_brightness(brightfd, current_brightness);
 							prev_brightness = current_brightness;
 						}
 						sleep_ms(3);
 				}
 		}
-		//printf("Done setting Brightness!\n");
+		SPAM(("Done setting Brightness!\n"));
 		pclose(brightfd);
 }
 
 int main(int argc, char * argv[]) {
 		signal(SIGINT, sig_handler);
 		if (argc < 3) {
-				printf("Usage: timeout <timeout_sec>\n");
-				printf("    Use lsinput to see input devices.\n");
-				printf("    Device to use is shown as /dev/input/<device>\n");
+				SPAM(("Usage: timeout <timeout_sec> <event>\n"));
+				SPAM(("    Use lsinput to see input devices.\n"));
+				SPAM(("    Device to use is shown as /dev/input/<device>\n"));
 				exit(1);
 		}
 		uint16_t tlen;
@@ -298,7 +300,7 @@ int main(int argc, char * argv[]) {
 		tlen = strlen(argv[1]);
 		for (uint16_t i = 0; i < tlen; i++){
 				if (!isdigit(argv[1][i])) {
-						printf("Entered timeout value is not a number\n");
+						SPAM(("Entered timeout value is not a number\n"));
 						exit(1);
 				}
 		}
@@ -314,18 +316,18 @@ int main(int argc, char * argv[]) {
 				int event_dev = open(device[i], O_RDONLY | O_NONBLOCK);
 				if(event_dev == -1) {
 						int err = errno;
-						printf("Error opening %s: %d\n", device[i], err);
+						SPAM(("Error opening %s: %d\n", device[i], err));
 						exit(1);
 				}
 				eventfd[i] = event_dev;
 		}
-		printf("Using input device%s: ", (num_dev > 1) ? "s" : "");
+		SPAM(("Using input device%s: ", (num_dev > 1) ? "s" : ""));
 		for (uint16_t i = 0; i < num_dev; i++) {
 				printf("%s ", device[i]);
 		}
-		printf("\n");
+		SPAM(("\n"));
 
-		printf("Starting...\n");
+		SPAM(("Starting...\n"));
 		struct input_event event[64];
 		uint16_t event_size;
 		uint16_t size = sizeof(struct input_event);
@@ -335,27 +337,27 @@ int main(int argc, char * argv[]) {
 		current_brightness = max_brightness;
 		actual_brightness = readint(actual_file);
 
+		enable_touch_screen(true);		
 		increase_brightness(true);
-		enable_touch_screen(true);
 		restart_xprintidle();
-		sleep_ms(XPRINT_IDLE_TIMEOUT);
+		sleep_ms(XPRINT_IDLE_TIMEOUT);		
+		increase_brightness(true);
 		disable_xenergystar();
 					
-		printf("Touchscreen's ID: %d, actual_brightness %d, max_brightness %d\n", get_touch_screen_id(), actual_brightness, max_brightness);
+		SPAM(("Touchscreen's ID: %d, actual_brightness %d, max_brightness %d\n", get_touch_screen_id(), actual_brightness, max_brightness));
 
 		bool fade_direction = false;
 		bool touch_screen_triggered = true;
 		bool user_moved = false;
 		time_t last_touch_time = time(NULL);
-		relative_idle_time = get_idle_time();
 
 		while (1) {
 				if(fade_direction && !touch_screen_triggered) {
 						for (uint16_t i = 0; i < num_dev; i++) {
 								event_size = read(eventfd[i], event, size*64);
 								if(event_size != -1 && event_size != 65535 && event[i].time.tv_sec != current_time) {
-										printf("Touch Detected!\n");
-										printf("Setting Brightness, Time: %ld\n", event[i].time.tv_sec);
+										SPAM(("Touch Detected!\n"));
+										SPAM(("Setting Brightness, Time: %ld\n", event[i].time.tv_sec));
 										fade_direction = false;
 										touch_screen_triggered = true;
 										last_touch_time = time(NULL);
@@ -369,26 +371,26 @@ int main(int argc, char * argv[]) {
 						for (uint16_t i = 0; i < num_dev; i++) {
 								event_size = read(eventfd[i], event, size*64);
 								if(event_size != -1 && event_size != 65535 && event[i].time.tv_sec != current_time) {
-										printf("Time: %lld\n", event[i].time.tv_sec);
+										SPAM(("Time: %lld\n", event[i].time.tv_sec));
 										current_time = event[i].time.tv_sec;
+										last_touch_time = time(NULL);
+										touch_screen_triggered = true;
 								}
 						}
 				}
 				if(touch_screen_triggered && (time(NULL)-last_touch_time >= timeout)) {
-						printf("Touch screen check ended\n");
+						SPAM(("Touch screen check ended\n"));
 						touch_screen_triggered = false;
 				}
-				if (!user_moved && fade_direction && ((get_idle_time()-relative_idle_time) < timeout*1E4)) {
-						printf("Mouse moved\n");
-						relative_idle_time = get_idle_time();
+				if (!touch_screen_triggered && !user_moved && fade_direction && (get_idle_time() < timeout*1E4)) {
+						SPAM(("Mouse moved\n"));					
 						fade_direction = false;
 						user_moved = true;
 						increase_brightness(true);
 						enable_touch_screen(true);
 				}
-				if ((!touch_screen_triggered||user_moved) && !fade_direction && ((get_idle_time()-relative_idle_time) >= timeout*1E4)) {
-						relative_idle_time = get_idle_time()-timeout*1E4;
-						printf("Screen dim: %lld\n", (get_idle_time()-relative_idle_time));
+				if ((!touch_screen_triggered||user_moved) && !fade_direction && (get_idle_time() >= timeout*1E4)) {
+						SPAM(("Screen dim: %lld\n", get_idle_time()));
 						fade_direction = true;
 						user_moved = false;
 						if (current_brightness > 0) {
@@ -396,7 +398,7 @@ int main(int argc, char * argv[]) {
 								enable_touch_screen(false);
 						}
 				}
-				printf("Idle Time: %lld\n", (get_idle_time()-relative_idle_time));
+				SPAM(("Idle Time: %lld\n", get_idle_time()));
 				sleep_ms(SLEEP_TIMEOUT_DURATION);
 		}
 }
