@@ -1,9 +1,10 @@
 ## Forked by Nathan^2
-+ dims more smoothly and uses xprintidle for detecting idleness
-+ systemd timer used to run at boot
-+ Regarding the touch screen, the device disables it after dimming the screen.  Then, when the user taps on the screen, it brightens the screen and enables the touch screen inputs. This way, we avoid propagating the mouse inputs when we can't see the screen. **(which was an issue in the original repo)**
++ Pro: dims more smoothly and uses xprintidle for detecting idleness
++ Pro: systemd timer used to run at boot
++ Pro: Regarding the touch screen, the device disables it after dimming the screen.  Then, when the user taps on the screen, it brightens the screen and enables the touch screen inputs. This way, we avoid propagating the mouse inputs when we can't see the screen. **(which was an issue in the original repo)**
 
-- Con/Pro: The program disables energy star mode so that it can pick up touch events throughout the night.(This feature wasn't in the original repo)
+- Pro: Works on all Linux distros(that support the package requirements).
+- Pro/Con: The program disables energy star mode so that it can pick up touch events throughout the night.(This feature wasn't in the original repo)
 - Con: A new issue is that when the user drags, xprintidle cannot detect it.
 
 ## Requirements
@@ -16,27 +17,33 @@ sudo apt-get install libpcre3 libpcre3-dev xprintidle
 Simply type in the terminal of the project's directory:
 ```
 make
-sudo ./timeout 30 event0
+sudo ./timeout pi 30 event0
 ```
-where the 30 is 30 seconds of idleness
+Where the `30` is 30 seconds of idleness.
+Where `pi` is the user (you can get your username by typing `whoami` in a terminal).
 
 ## Systemd file setup for running script at boot:
 Enter into a terminal:
 ```
 sudo systemctl edit --full backlight_dimmer.service
 ```
+if that doesn't work, then manually create the file with sudo nano:
+```
+sudo nano /etc/systemd/system/backlight_dimmer.service
+```
 Enter the following into the new file:
 
 **Note: Change the ExecStart to your location of the timeout script**
+
 **Note: Change the User to your username(by default it is `pi` on raspberry pi)**
 ```
 [Unit]
-Description=Used to dim the raspberry pi's backlight upon idleness
+Description=Used to dim a computer's backlight upon idleness
 
 [Service]
-User=pi
-ExecStartPre=/bin/sleep 11  # sleep time of 11 seconds
-ExecStart=/home/pi/Documents/Github/myForks/backlight_dimmer/timeout 30 event0
+ExecStartPre=/bin/sleep 11
+# sleep time of 11 seconds from boot
+ExecStart=/home/pi/Documents/Github/myForks/backlight_dimmer/timeout pi 30 event0
 Environment=DISPLAY=:0
 
 [Install]

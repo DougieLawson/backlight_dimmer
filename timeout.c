@@ -3,11 +3,8 @@
 
    Improvements listed in Readme.
 
-   Improved and Forked by Nathan Ramanathan 02-08-2020+
-   First Written by Dougie Lawson 01-22-2019
-
-
-   (C) Copyright 2019, Dougie Lawson, all right reserved.
+   First Forked by Dougie Lawson 01-22-2019
+   Maintained, improved and forked by Nathan Ramanathan 02-08-2020+
  */
 #include <stdio.h>
 #include <errno.h>
@@ -37,6 +34,7 @@
 #endif
 #define XPRINT_IDLE_TIMEOUT 3000 //in ms
 
+static char* user_name = NULL;
 static uint16_t actual_brightness;
 static uint16_t max_brightness;
 static uint16_t current_brightness;
@@ -146,8 +144,14 @@ static void restart_xprintidle() {
 static void disable_xenergystar(){
 		FILE *fp;
 
+		char final_command[70];
+		char set_command[] = "%s %s %s";
+		char command[] = "sudo -u";
+		char end_command[] = "env DISPLAY=:0 xset s off -dpms";
+		sprintf(final_command, set_command, command, user_name, end_command);
+
 		/* Open the command for reading. */
-		fp = popen("sudo -u $USER env DISPLAY=:0 xset s off -dpms", "r");
+		fp = popen((char *) final_command, "r");
 		if (fp == NULL) {
 				SPAM(("Failed to run command\n"));
 				exit(1);
@@ -162,8 +166,14 @@ static uint32_t get_idle_time() {
 		FILE *fp;
 		char path[1035];
 
-		/* Open the command for reading. */
-		fp = popen("sudo -u $USER env DISPLAY=:0 xprintidle", "r");
+		char final_command[70];
+		char set_command[] = "%s %s %s";
+		char command[] = "sudo -u";
+		char end_command[] = "env DISPLAY=:0 xprintidle";
+		sprintf(final_command, set_command, command, user_name, end_command);
+
+    /* Open the command for reading. */
+		fp = popen((char *) final_command, "r");
 		if (fp == NULL) {
 				SPAM(("Failed to run command\n"));
 				exit(1);
@@ -207,7 +217,13 @@ static uint32_t get_touch_screen_id(){
 		FILE *fp;
 		char path[1035];
 
-		fp = popen("sudo -u $USER env DISPLAY=:0 xinput --list", "r");
+    char final_command[70];
+    char set_command[] = "%s %s %s";
+    char command[] = "sudo -u";
+    char end_command[] = "env DISPLAY=:0 xinput --list";
+    sprintf(final_command, set_command, command, user_name, end_command);
+
+		fp = popen((char *) final_command, "r");
 		if (fp == NULL) {
 				SPAM(("Failed to run command\n"));
 				exit(1);
@@ -252,11 +268,12 @@ static void enable_touch_screen(bool enable) {
 		#ifdef __arm__
 		FILE *fp;
 		char final_command[70];
-		char set_command[] = "%s %s %d";
+		char set_command[] = "%s %s %s %s %d";
 		char disable_enable[10];
 		strcpy(disable_enable, (enable) ? "--enable" : "--disable");
-		char command[] = "sudo -u $USER env DISPLAY=:0 xinput";
-		sprintf(final_command, set_command, command, disable_enable, get_touch_screen_id());
+		char command[] = "sudo -u";
+		char end_command[] = "env DISPLAY=:0 xinput";
+		sprintf(final_command, set_command, command, user_name, end_command, disable_enable, get_touch_screen_id());
 		/* Open the command for reading. */
 		fp = popen((char *) final_command, "r");
 		if (fp == NULL) {
@@ -285,7 +302,7 @@ static void increase_brightness(bool increase, bool ignoreIdle){
 								//SPAM(("Brightness: %d\n", current_brightness));
 								set_screen_brightness(brightfd, current_brightness);
 								prev_brightness = current_brightness;
-                if(prev_brightness == max_brightness) {
+								if(prev_brightness == max_brightness) {
 										break;
 								}
 						}
@@ -321,28 +338,32 @@ static void increase_brightness(bool increase, bool ignoreIdle){
 
 int main(int argc, char * argv[]) {
 		signal(SIGINT, sig_handler);
-		if (argc < 3) {
-				SPAM(("Usage: timeout <timeout_sec> <event>\n"));
+		if (argc < 4) {
+				SPAM(("Usage: timeout <user> <timeout_sec> <event>\n"));
 				SPAM(("    Use lsinput to see input devices.\n"));
 				SPAM(("    Device to use is shown as /dev/input/<device>\n"));
 				exit(1);
 		}
+		user_name = (char *)malloc(strlen(argv[1]));
+		strcpy(user_name, argv[1]);
+		printf("User: %s\n", user_name);
+
 		uint16_t tlen;
-		tlen = strlen(argv[1]);
+		tlen = strlen(argv[2]);
 		for (uint16_t i = 0; i < tlen; i++) {
-				if (!isdigit(argv[1][i])) {
+				if (!isdigit(argv[2][i])) {
 						SPAM(("Entered timeout value is not a number\n"));
 						exit(1);
 				}
 		}
-		timeout = atoi(argv[1]);
+		timeout = atoi(argv[2]);
 		uint16_t num_dev = argc - 2;
 		uint16_t eventfd[num_dev];
 		char device[num_dev][32];
 		for (uint16_t i = 0; i < num_dev; i++) {
 				device[i][0] = '\0';
 				strcat(device[i], "/dev/input/");
-				strcat(device[i], argv[i + 2]);
+				strcat(device[i], argv[3]);
 
 				int event_dev = open(device[i], O_RDONLY | O_NONBLOCK);
 				if(event_dev == -1) {
