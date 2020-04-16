@@ -28,11 +28,13 @@ sudo systemctl edit --full backlight_dimmer.service
 Enter the following into the new file:
 
 **Note: Change the ExecStart to your location of the timeout script**
+**Note: Change the User to your username(by default it is `pi` on raspberry pi)**
 ```
 [Unit]
 Description=Used to dim the raspberry pi's backlight upon idleness
 
 [Service]
+User=pi
 ExecStartPre=/bin/sleep 11  # sleep time of 11 seconds
 ExecStart=/home/pi/Documents/Github/myForks/backlight_dimmer/timeout 30 event0
 Environment=DISPLAY=:0
