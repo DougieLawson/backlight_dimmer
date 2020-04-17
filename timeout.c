@@ -172,7 +172,7 @@ static uint32_t get_idle_time() {
 		char end_command[] = "env DISPLAY=:0 xprintidle";
 		sprintf(final_command, set_command, command, user_name, end_command);
 
-    /* Open the command for reading. */
+		/* Open the command for reading. */
 		fp = popen((char *) final_command, "r");
 		if (fp == NULL) {
 				SPAM(("Failed to run command\n"));
@@ -217,11 +217,11 @@ static uint32_t get_touch_screen_id(){
 		FILE *fp;
 		char path[1035];
 
-    char final_command[70];
-    char set_command[] = "%s %s %s";
-    char command[] = "sudo -u";
-    char end_command[] = "env DISPLAY=:0 xinput --list";
-    sprintf(final_command, set_command, command, user_name, end_command);
+		char final_command[70];
+		char set_command[] = "%s %s %s";
+		char command[] = "sudo -u";
+		char end_command[] = "env DISPLAY=:0 xinput --list";
+		sprintf(final_command, set_command, command, user_name, end_command);
 
 		fp = popen((char *) final_command, "r");
 		if (fp == NULL) {
@@ -311,11 +311,13 @@ static void increase_brightness(bool increase, bool ignoreIdle){
 		}
 		else{
 				for (uint16_t i = max_brightness; i > 0 + fade_amount; i--) {
+		  #ifndef __arm__
 						if(!ignoreIdle && (get_idle_time() < timeout*1E4)) {
 								SPAM(("Aborting screen dim, user moved!\n"));
 								ignore_timeout = true;
 								break;
 						}
+			#endif
 						current_brightness = (current_brightness-fade_amount<=0) ? 0 : current_brightness-fade_amount;
 						if (prev_brightness!=current_brightness) {
 								// SPAM(("Brightness: %d\n", current_brightness));
@@ -346,7 +348,7 @@ int main(int argc, char * argv[]) {
 		}
 		user_name = (char *)malloc(strlen(argv[1]));
 		strcpy(user_name, argv[1]);
-		printf("User: %s\n", user_name);
+		SPAM(("User: %s\n", user_name));
 
 		uint16_t tlen;
 		tlen = strlen(argv[2]);
