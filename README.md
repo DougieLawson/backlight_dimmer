@@ -32,8 +32,6 @@ sudo chmod +s /usr/local/bin/timeout
 sudo chmod +s /usr/local/bin/run-timeout.sh
 ```
 
-Multiple devices may be specified.
-
 **Note:** It must be run as root (setuid) or with `sudo` to be able to access the backlight. Or you can make the program setuid and owned by root with `sudo cp ...` and `sudo chmod ...`
 
 It can be run at startup, for example by putting a line in 
