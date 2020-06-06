@@ -1,0 +1,3 @@
+#!/bin/bash
+
+ls -ltr /dev/input/[e,m]*
