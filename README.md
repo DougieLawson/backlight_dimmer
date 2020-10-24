@@ -27,7 +27,7 @@ Copy to `/usr/local/bin` and make it setuid to allow anyone to run it.
 ```
 sudo cp ./timeout /usr/local/bin
 sudo cp ./lsinput /usr/local/bin
-sudo cp /run-timeout.sh /usr/local/bin
+sudo cp ./run-timeout.sh /usr/local/bin
 sudo chmod +s /usr/local/bin/timeout
 sudo chmod +s /usr/local/bin/run-timeout.sh
 ```
