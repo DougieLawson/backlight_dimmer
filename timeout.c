@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <glob.h>
 #include <linux/input.h>
 #include <time.h>
 #include <stdlib.h>
@@ -99,9 +100,31 @@ int main(int argc, char* argv[]){
         sleepTime.tv_sec = 0;
         sleepTime.tv_nsec = 100000000L;  /* 1 seconds - larger values may reduce load even more */
 
-	char actual[53] = "/sys/class/backlight/rpi_backlight/actual_brightness";
-	char max[50] = "/sys/class/backlight/rpi_backlight/max_brightness";
-  	char bright[46] = "/sys/class/backlight/rpi_backlight/brightness";
+        char backlight_path[100];
+        glob_t globbuf;
+        int globres = glob("/sys/class/backlight/*", 0, NULL, &globbuf);
+        if(globres != 0) {
+            printf("Glob failed: %d\n", globres);
+            exit(1);
+        }
+        if(globbuf.gl_pathc < 1) {
+            printf("Backlight device not found in /sys/class/backlight\n");
+            exit(1);
+        }
+        strncpy(backlight_path, globbuf.gl_pathv[0], sizeof(backlight_path));
+        strcat(backlight_path, "/");
+        printf("Using backlight device %s\n", backlight_path);
+        globfree(&globbuf);
+
+        char actual[120];
+        char max[120];
+        char bright[120];
+        strcpy(actual, backlight_path);
+        strcat(actual, "actual_brightness");
+        strcpy(max, backlight_path);
+        strcat(max, "max_brightness");
+        strcpy(bright, backlight_path);
+        strcat(bright, "brightness");
 
 	brightfd = fopen(bright, "w");
         if(brightfd == NULL){
